@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="pt-BR" class="h-full bg-slate-950">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PetLink: CadêMeuPet? - Localizador de Animais Perdidos</title>
+    
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        darkcyan: {
+                            DEFAULT: '#618B25',
+                            hover: '#4e701d',
+                            50: '#f4f8f0',
+                            100: '#e5f0d8',
+                            600: '#618B25',
+                            700: '#4e701d',
+                        },
+                        mint: {
+                            DEFAULT: '#6BD425',
+                            hover: '#58b21e',
+                            50: '#f2fceb',
+                            100: '#e0f9cd',
+                            500: '#6BD425',
+                            600: '#58b21e',
+                        },
+                        skyaqua: {
+                            DEFAULT: '#618B25',
+                            hover: '#4e701d',
+                            100: '#e5f0d8',
+                            500: '#618B25',
+                            600: '#4e701d',
+                        },
+                        lavender: {
+                            DEFAULT: '#42113C',
+                            hover: '#370926',
+                            50: '#f5eff4',
+                            100: '#e9dce8',
+                            500: '#42113C',
+                            700: '#370926',
+                        },
+                        rosytaupe: {
+                            DEFAULT: '#42113C',
+                            hover: '#370926',
+                            50: '#f5eff4',
+                            100: '#e9dce8',
+                            500: '#42113C',
+                            600: '#370926',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Chart.js for Admin Analytics -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .map-embed-container { height: 100%; min-height: 480px; width: 100%; border-radius: 0.75rem; overflow: hidden; position: relative; }
+        .map-embed-container iframe { width: 100%; height: 100%; border: 0; min-height: 480px; display: block; }
+        .form-map-container { height: 220px; width: 100%; border-radius: 0.75rem; overflow: hidden; position: relative; }
+        .form-map-container iframe { width: 100%; height: 100%; border: 0; min-height: 220px; display: block; }
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #1C0118; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #42113C; border-radius: 3px; }
+        .glass-header { backdrop-filter: blur(8px); background-color: rgba(28, 1, 24, 0.9); }
+    </style>
+</head>
+<body class="h-full flex flex-col text-slate-100 antialiased selection:bg-[#6BD425] selection:text-slate-950 bg-slate-950">
+
+    <!-- Tela de Autenticação Obrigatória (Exibida antes de entrar no App) -->
+    <div id="auth-screen" class="fixed inset-0 z-50 bg-[#1C0118] flex items-center justify-center p-4 bg-gradient-to-br from-[#1C0118] via-[#370926] to-[#42113C]">
+        <div class="bg-[#370926] rounded-3xl shadow-2xl border border-[#42113C] w-full max-w-md overflow-hidden transform transition-all text-slate-100">
+            <!-- Modal Header with Logo -->
+            <div class="p-6 bg-gradient-to-r from-[#42113C] to-[#618B25] text-white text-center relative">
+                <div class="w-24 h-24 rounded-2xl bg-white/10 backdrop-blur-md flex items-center justify-center mx-auto mb-3 p-2 shadow-lg border border-white/25">
+                    <img src="https://storage.googleapis.com/msgsndr/wWJb27xK6s22zL7j95x5/media/67d643d9f3f4e2456e43f0ae.png" alt="PetLink Logo" class="w-full h-full object-contain rounded-xl" onerror="this.src='https://placehold.co/100x100/ffffff/618B25?text=PetLink'">
+                </div>
+                <h2 class="text-2xl font-bold">PetLink: CadêMeuPet?</h2>
+                <p class="text-xs text-emerald-200 mt-1">Identifique-se para acessar o sistema de localização</p>
+            </div>
+
+            <div class="p-6 space-y-5">
+                <!-- Preset Login Buttons for Fast Testing -->
+                <div class="bg-[#1C0118] border border-[#42113C] rounded-xl p-3 text-xs text-slate-200 space-y-2">
+                    <p class="font-bold text-[#6BD425] flex items-center justify-center gap-1.5">
+                        <i class="fa-solid fa-bolt"></i> Acesso Rápido para Testes:
+                    </p>
+                    <div class="grid grid-cols-2 gap-2 pt-1">
+                        <button type="button" onclick="quickLogin('ADMIN')" class="bg-[#42113C] hover:bg-[#370926] text-white font-semibold py-2 px-3 rounded-lg text-xs transition flex items-center justify-center gap-1.5 shadow-sm border border-[#618B25]/30">
+                            <i class="fa-solid fa-user-gear"></i> Perfil ADMIN
+                        </button>
+                        <button type="button" onclick="quickLogin('TUTOR')" class="bg-[#618B25] hover:bg-[#4e701d] text-white font-semibold py-2 px-3 rounded-lg text-xs transition flex items-center justify-center gap-1.5 shadow-sm">
+                            <i class="fa-solid fa-user"></i> Perfil TUTOR
+                        </button>
+                    </div>
+                </div>
+
+                <div class="relative flex py-1 items-center">
+                    <div class="flex-grow border-t border-[#42113C]"></div>
+                    <span class="flex-shrink mx-3 text-xs text-slate-400 font-semibold uppercase">ou entre com e-mail</span>
+                    <div class="flex-grow border-t border-[#42113C]"></div>
+                </div>
+
+                <!-- Login Form -->
+                <form id="mandatory-login-form" onsubmit="handleLoginSubmit(event)" class="space-y-4">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-300 uppercase mb-1">E-mail</label>
+                        <input type="email" id="login-email" required placeholder="ex: tutor@petalert.com" class="w-full px-4 py-2 text-sm bg-[#1C0118] border border-[#42113C] text-white rounded-xl focus:ring-2 focus:ring-[#6BD425] outline-none">
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold text-slate-300 uppercase mb-1">Senha</label>
+                        <input type="password" id="login-password" required placeholder="••••••••" class="w-full px-4 py-2 text-sm bg-[#1C0118] border border-[#42113C] text-white rounded-xl focus:ring-2 focus:ring-[#6BD425] outline-none">
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold text-slate-300 uppercase mb-1">Perfil de Acesso</label>
+                        <select id="login-role" class="w-full px-4 py-2 text-sm bg-[#1C0118] border border-[#42113C] text-white rounded-xl focus:ring-2 focus:ring-[#6BD425] outline-none">
+                            <option value="TUTOR">TUTOR (Usuário Geral)</option>
+                            <option value="ADMIN">ADMINISTRADOR (Acesso Completo)</option>
+                        </select>
+                    </div>
+
+                    <button type="submit" class="w-full bg-[#6BD425] hover:bg-[#58b21e] text-slate-950 font-bold py-2.5 rounded-xl text-sm shadow-md transition flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-right-to-bracket"></i> Entrar na Aplicação
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Application Container (Hidden until user logs in) -->
+    <div id="app-container" class="hidden h-full flex flex-col">
+
+    <header class="sticky top-0 z-40 w-full glass-header border-b border-[#370926] shadow-sm bg-[#1C0118]/90 text-slate-100">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <!-- Logo Top Left -->
+                <div class="flex items-center gap-3 cursor-pointer" onclick="switchTab('map-view')">
+                    <div class="w-11 h-11 rounded-xl bg-gradient-to-tr from-[#618B25] to-[#6BD425] flex items-center justify-center text-slate-950 shadow-md p-1 border border-white/20">
+                        <img src="https://storage.googleapis.com/msgsndr/wWJb27xK6s22zL7j95x5/media/67d643d9f3f4e2456e43f0ae.png" alt="PetLink Logo" class="w-full h-full object-contain rounded-lg" onerror="this.style.display='none'">
+                    </div>
+                    <div>
+                        <span class="text-lg font-bold bg-gradient-to-r from-[#6BD425] to-[#618B25] bg-clip-text text-transparent">PetLink: CadêMeuPet?</span>
+                        <span class="hidden sm:inline-block text-xs font-semibold px-2 py-0.5 ml-2 bg-[#42113C] text-[#6BD425] rounded-full border border-[#6BD425]/30">Plataforma Interativa</span>
+                    </div>
+                </div>
+
+                <!-- Navigation Tabs (Desktop) -->
+                <nav id="main-nav" class="hidden md:flex items-center space-x-1">
+                    <button onclick="switchTab('map-view')" class="nav-btn text-slate-300 hover:text-[#6BD425] hover:bg-[#42113C] px-3 py-2 rounded-lg text-sm font-medium transition flex items-center gap-2" data-tab="map-view">
+                        <i class="fa-solid fa-map-location-dot text-[#6BD425]"></i> Mapa de Ocorrências
+                    </button>
+                    <button onclick="switchTab('list-view')" class="nav-btn text-slate-300 hover:text-[#6BD425] hover:bg-[#42113C] px-3 py-2 rounded-lg text-sm font-medium transition flex items-center gap-2" data-tab="list-view">
+                        <i class="fa-solid fa-list-ul text-[#6BD425]"></i> Listagem de Casos
+                    </button>
+                    <button id="nav-btn-register" onclick="openRegisterModal()" class="nav-btn text-slate-300 hover:text-[#6BD425] hover:bg-[#42113C] px-3 py-2 rounded-lg text-sm font-medium transition flex items-center gap-2">
+                        <i class="fa-solid fa-circle-plus text-[#6BD425]"></i> Registrar Ocorrência
+                    </button>
+                    <button onclick="switchTab('messages-view')" class="nav-btn text-slate-300 hover:text-[#6BD425] hover:bg-[#42113C] px-3 py-2 rounded-lg text-sm font-medium transition flex items-center gap-2 relative" data-tab="messages-view">
+                        <i class="fa-solid fa-comments text-[#618B25]"></i> Mensagens
+                        <span id="unread-badge" class="hidden absolute -top-1 -right-1 bg-[#42113C] text-white text-[10px] w-4 h-4 rounded-full flex items-center justify-center font-bold border border-[#6BD425]">0</span>
+                    </button>
+                    <button id="nav-btn-admin" onclick="switchTab('admin-view')" class="hidden nav-btn text-[#6BD425] hover:text-[#58b21e] hover:bg-[#42113C] px-3 py-2 rounded-lg text-sm font-semibold transition flex items-center gap-2" data-tab="admin-view">
+                        <i class="fa-solid fa-user-shield"></i> Painel Admin
+                    </button>
+                </nav>
+
+                <!-- Auth Controls -->
+                <div class="flex items-center gap-3">
+                    <div id="user-profile-badge" class="hidden flex items-center gap-3 bg-[#370926] px-3 py-1.5 rounded-full border border-[#42113C]">
+                        <div class="w-7 h-7 rounded-full bg-[#6BD425] text-slate-950 flex items-center justify-center font-bold text-xs" id="user-avatar-initials">T</div>
+                        <div class="text-left hidden lg:block">
+                            <p id="user-name-display" class="text-xs font-semibold text-slate-200 leading-none">Usuário</p>
+                            <p id="user-role-badge" class="text-[10px] font-bold text-[#6BD425] uppercase leading-tight">TUTOR</p>
+                        </div>
+                        <button onclick="logout()" class="text-slate-400 hover:text-rose-400 text-sm ml-1" title="Sair do Sistema">
+                            <i class="fa-solid fa-right-from-bracket"></i>
+                        </button>
+                    </div>
+
+                    <button id="btn-open-login" onclick="openLoginModal()" class="bg-[#6BD425] hover:bg-[#58b21e] text-slate-950 text-sm font-medium px-4 py-2 rounded-lg shadow-sm transition flex items-center gap-2">
+                        <i class="fa-solid fa-right-to-bracket"></i> Entrar / Cadastrar
+                    </button>
+
+                    <!-- Mobile Menu Button -->
+                    <button onclick="toggleMobileMenu()" class="md:hidden p-2 rounded-lg text-slate-300 hover:bg-[#370926]">
+                        <i class="fa-solid fa-bars text-xl"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Mobile Navigation Menu -->
+        <div id="mobile-menu" class="hidden md:hidden border-t border-[#370926] bg-[#1C0118] px-4 pt-2 pb-4 space-y-1">
+            <button onclick="switchTab('map-view'); toggleMobileMenu()" class="w-full text-left px-3 py-2 rounded-md text-base font-medium text-slate-300 hover:bg-[#370926]">
+                <i class="fa-solid fa-map-location-dot w-6 text-[#6BD425]"></i> Mapa de Ocorrências
+            </button>
+            <button onclick="switchTab('list-view'); toggleMobileMenu()" class="w-full text-left px-3 py-2 rounded-md text-base font-medium text-slate-300 hover:bg-[#370926]">
+                <i class="fa-solid fa-list-ul w-6 text-[#6BD425]"></i> Listagem de Casos
+            </button>
+            <button onclick="openRegisterModal(); toggleMobileMenu()" class="w-full text-left px-3 py-2 rounded-md text-base font-medium text-slate-300 hover:bg-[#370926]">
+                <i class="fa-solid fa-circle-plus w-6 text-[#6BD425]"></i> Registrar Ocorrência
+            </button>
+            <button onclick="switchTab('messages-view'); toggleMobileMenu()" class="w-full text-left px-3 py-2 rounded-md text-base font-medium text-slate-300 hover:bg-[#370926]">
+                <i class="fa-solid fa-comments w-6 text-[#618B25]"></i> Mensagens
+            </button>
+            <button id="mobile-nav-admin" onclick="switchTab('admin-view'); toggleMobileMenu()" class="hidden w-full text-left px-3 py-2 rounded-md text-base font-medium text-[#6BD425] bg-[#370926]">
+                <i class="fa-solid fa-user-shield w-6"></i> Painel Administrador
+            </button>
+        </div>
+    </header>
+
+    <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 relative bg-slate-950 text-slate-100">
+
+        <!-- Global Alert Message Banner -->
+        <div id="global-alert" class="hidden mb-4 p-4 rounded-xl border shadow-sm transition-all duration-300 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <i id="global-alert-icon" class="text-xl"></i>
+                <span id="global-alert-msg" class="text-sm font-medium"></span>
+            </div>
+            <button onclick="closeGlobalAlert()" class="text-slate-400 hover:text-slate-200 text-lg">&times;</button>
+        </div>
+
+        <!-- TAB 1: INTERACTIVE MAP VIEW -->
+        <section id="tab-map-view" class="tab-content space-y-4">
+            <!-- Filter Bar for Map -->
+            <div class="bg-[#1C0118] p-4 rounded-xl shadow-sm border border-[#370926] flex flex-col md:flex-row gap-4 items-center justify-between">
+                <div class="flex flex-wrap items-center gap-3 w-full md:w-auto">
+                    <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Filtros Rápidos:</span>
+                    
+                    <!-- Category Selector -->
+                    <select id="filter-category" onchange="applyFilters()" class="text-sm border border-[#370926] rounded-lg px-3 py-1.5 bg-[#370926] text-slate-200 focus:bg-[#1C0118] focus:ring-2 focus:ring-[#6BD425] outline-none">
+                        <option value="ALL">Todas Categorias (Perdi & Achei)</option>
+                        <option value="PERDI">🔴 Perdi um Pet</option>
+                        <option value="ACHEI">🔵 Achei um Pet</option>
+                    </select>
+
+                    <!-- Species Filter -->
+                    <select id="filter-species" onchange="applyFilters()" class="text-sm border border-[#370926] rounded-lg px-3 py-1.5 bg-[#370926] text-slate-200 focus:bg-[#1C0118] focus:ring-2 focus:ring-[#6BD425] outline-none">
+                        <option value="ALL">Todas as Espécies</option>
+                        <option value="Cão">🐶 Cão</option>
+                        <option value="Gato">🐱 Gato</option>
+                        <option value="Ave">🦜 Ave</option>
+                        <option value="Outros">🐾 Outros</option>
+                    </select>
+
+                    <!-- Status Filter -->
+                    <select id="filter-status" onchange="applyFilters()" class="text-sm border border-[#370926] rounded-lg px-3 py-1.5 bg-[#370926] text-slate-200 focus:bg-[#1C0118] focus:ring-2 focus:ring-[#6BD425] outline-none">
+                        <option value="ALL">Todos os Status</option>
+                        <option value="Em Busca">🔍 Em Busca</option>
+                        <option value="Aguardando Tutor">🏠 Aguardando Tutor</option>
+                        <option value="Reencontrado">🎉 Reencontrado / Resolvido</option>
+                    </select>
+
+                    <!-- Geolocation Button -->
+                    <button onclick="locateUserOnMap()" class="text-sm border border-[#618B25] text-[#6BD425] hover:bg-[#370926] font-medium px-3 py-1.5 rounded-lg transition flex items-center gap-1.5" title="Centralizar na minha localização atual">
+                        <i class="fa-solid fa-crosshairs"></i> Minha Localização
+                    </button>
+                </div>
+
+                <!-- Text Search -->
+                <div class="w-full md:w-72 relative">
+                    <input type="text" id="filter-search" oninput="applyFilters()" placeholder="Buscar por bairro, nome ou raça..." class="w-full pl-9 pr-3 py-1.5 text-sm bg-[#370926] border border-[#42113C] text-white rounded-lg focus:ring-2 focus:ring-[#6BD425] outline-none placeholder-slate-400">
+                    <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-slate-400 text-xs"></i>
+                </div>
+            </div>
+
+            <!-- Map Wrapper -->
+            <div class="relative bg-[#1C0118] p-2 rounded-2xl shadow-sm border border-[#370926] overflow-hidden">
+                <div class="map-embed-container">
+                    <iframe src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3675.2906123456!2d-48.0512!3d-23.5905!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x94c5cc70ba456a65%3A0x770be09241987369!2sItapetininga%2C%20SP!5e0!3m2!1spt-BR!2sbr!4v1789348722913!5m2!1spt-BR!2sbr" allowfullscreen="" loading="lazy" referrerpolicy="strict-origin-when-cross-origin"></iframe>
+                </div>
+                
+                <!-- Map Floating Legend -->
+                <div class="absolute bottom-6 right-6 z-[10] bg-[#1C0118]/95 backdrop-blur-md p-3 rounded-xl shadow-lg border border-[#370926] text-xs space-y-1.5 text-slate-200 pointer-events-none">
+                    <p class="font-bold text-[#6BD425] border-b border-[#370926] pb-1 mb-1">Área de Cobertura</p>
+                    <div class="flex items-center gap-2">
+                        <span class="w-3 h-3 rounded-full bg-[#42113C] inline-block border border-[#6BD425]/50"></span>
+                        <span class="text-slate-300">Itapetininga - SP e Região</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB 2: CASUAL LISTING VIEW -->
+        <section id="tab-list-view" class="tab-content hidden space-y-6">
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                <div>
+                    <h2 class="text-xl font-bold text-slate-100">Mural de Ocorrências Registradas</h2>
+                    <p class="text-sm text-slate-400">Ajude a conectar animais perdidos aos seus tutores</p>
+                </div>
+                <button onclick="openRegisterModal()" class="bg-[#6BD425] hover:bg-[#58b21e] text-slate-950 font-medium px-4 py-2 rounded-xl text-sm shadow-md transition flex items-center gap-2">
+                    <i class="fa-solid fa-plus-circle"></i> Novo Registro
+                </button>
+            </div>
+
+            <!-- List Grid -->
+            <div id="cases-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                <!-- Injected via JavaScript -->
+            </div>
+
+            <!-- Empty State -->
+            <div id="empty-state" class="hidden text-center py-12 bg-[#1C0118] rounded-2xl border border-dashed border-[#370926]">
+                <i class="fa-solid fa-paw text-4xl text-slate-600 mb-3"></i>
+                <h3 class="text-lg font-medium text-slate-300">Nenhuma ocorrência encontrada</h3>
+                <p class="text-sm text-slate-500 max-w-sm mx-auto mt-1">Tente ajustar os filtros ou seja o primeiro a registrar uma nova ocorrência em sua região.</p>
+            </div>
+        </section>
+
+        <!-- TAB 3: MESSAGES / CONTACT VIEW -->
+        <section id="tab-messages-view" class="tab-content hidden space-y-4">
+            <div class="bg-[#1C0118] rounded-2xl shadow-sm border border-[#370926] overflow-hidden min-h-[500px] flex flex-col md:flex-row">
+                <!-- Chat List Sidebar -->
+                <div class="w-full md:w-80 border-r border-[#370926] bg-[#370926]/40 flex flex-col">
+                    <div class="p-4 border-b border-[#370926]">
+                        <h3 class="font-bold text-slate-200 flex items-center gap-2">
+                            <i class="fa-solid fa-comments text-[#6BD425]"></i> Contatos & Conversas
+                        </h3>
+                    </div>
+                    <div id="chat-threads-list" class="flex-1 overflow-y-auto divide-y divide-[#370926] custom-scrollbar">
+                        <!-- Chat tabs dynamic -->
+                    </div>
+                </div>
+
+                <!-- Chat Active View -->
+                <div id="chat-window" class="flex-1 flex flex-col bg-[#1C0118]">
+                    <div id="chat-empty-view" class="flex-1 flex flex-col items-center justify-center p-8 text-center text-slate-500">
+                        <i class="fa-regular fa-paper-plane text-5xl mb-3 text-slate-700"></i>
+                        <p class="font-medium">Selecione uma conversa ou inicie contato através dos cards de ocorrências.</p>
+                    </div>
+
+                    <div id="chat-active-view" class="hidden flex-1 flex flex-col h-full">
+                        <!-- Header Chat -->
+                        <div class="p-4 border-b border-[#370926] flex items-center justify-between bg-[#370926]/30">
+                            <div class="flex items-center gap-3">
+                                <div id="chat-header-avatar" class="w-10 h-10 rounded-full bg-[#6BD425] text-slate-950 flex items-center justify-center font-bold">P</div>
+                                <div>
+                                    <h4 id="chat-header-title" class="font-bold text-slate-100 text-sm">Pet Alert Contact</h4>
+                                    <p id="chat-header-protocol" class="text-xs text-slate-400">Protocolo: ---</p>
+                                </div>
+                            </div>
+                            <span id="chat-header-badge" class="px-2.5 py-1 text-xs font-semibold rounded-full bg-[#370926] text-[#6BD425] border border-[#42113C]">Ref: Ocorrência</span>
+                        </div>
+
+                        <!-- Messages Content -->
+                        <div id="chat-messages-body" class="flex-1 p-4 overflow-y-auto space-y-3 custom-scrollbar bg-slate-950/40">
+                            <!-- Injected JS -->
+                        </div>
+
+                        <!-- Input Area -->
+                        <form id="chat-form" onsubmit="sendChatMessage(event)" class="p-3 border-t border-[#370926] flex gap-2 bg-[#1C0118]">
+                            <input type="text" id="chat-input-text" placeholder="Escreva sua mensagem aqui..." required class="flex-1 px-4 py-2 text-sm bg-[#370926] border border-[#42113C] text-white rounded-xl focus:ring-2 focus:ring-[#6BD425] outline-none">
+                            <button type="submit" class="bg-[#6BD425] hover:bg-[#58b21e] text-slate-950 px-5 py-2 rounded-xl text-sm font-semibold transition flex items-center gap-2">
+                                <span>Enviar</span> <i class="fa-solid fa-paper-plane text-xs"></i>
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB 4: ADMIN DASHBOARD VIEW -->
+        <section id="tab-admin-view" class="tab-content hidden space-y-6">
+            <div class="bg-gradient-to-r from-[#1C0118] via-[#370926] to-[#42113C] rounded-2xl p-6 text-white shadow-lg border border-[#42113C] flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                <div>
+                    <span class="px-3 py-1 bg-white/10 border border-white/20 rounded-full text-xs font-semibold uppercase tracking-wider text-[#6BD425]">PetLink: CadêMeuPet? - Painel de Controle</span>
+                    <h2 class="text-2xl font-bold mt-2">Gestão Geral & Auditoria do Sistema</h2>
+                    <p class="text-slate-300 text-sm">Gerencie todas as ocorrências, altere status e visualize relatórios estatísticos.</p>
+                </div>
+                <button onclick="exportDataCSV()" class="bg-[#370926] hover:bg-[#42113C] text-[#6BD425] px-4 py-2 rounded-xl border border-[#6BD425]/30 text-sm font-medium transition flex items-center gap-2">
+                    <i class="fa-solid fa-file-export"></i> Exportar Dados (CSV)
+                </button>
+            </div>
+
+            <!-- Metric Cards -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div class="bg-[#1C0118] p-5 rounded-xl border border-[#370926] shadow-sm">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-bold text-slate-400 uppercase">Total Ocorrências</span>
+                        <div class="w-9 h-9 rounded-lg bg-[#370926] text-[#6BD425] flex items-center justify-center"><i class="fa-solid fa-folder-open"></i></div>
+                    </div>
+                    <p id="metric-total" class="text-2xl font-bold text-slate-100 mt-2">0</p>
+                </div>
+
+                <div class="bg-[#1C0118] p-5 rounded-xl border border-[#370926] shadow-sm">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-bold text-slate-400 uppercase">Pets Perdidos</span>
+                        <div class="w-9 h-9 rounded-lg bg-[#42113C] text-[#6BD425] flex items-center justify-center"><i class="fa-solid fa-triangle-exclamation"></i></div>
+                    </div>
+                    <p id="metric-lost" class="text-2xl font-bold text-slate-100 mt-2">0</p>
+                </div>
+
+                <div class="bg-[#1C0118] p-5 rounded-xl border border-[#370926] shadow-sm">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-bold text-slate-400 uppercase">Pets Encontrados</span>
+                        <div class="w-9 h-9 rounded-lg bg-[#370926] text-[#618B25] flex items-center justify-center"><i class="fa-solid fa-hand-holding-heart"></i></div>
+                    </div>
+                    <p id="metric-found" class="text-2xl font-bold text-slate-100 mt-2">0</p>
+                </div>
+
+                <div class="bg-[#1C0118] p-5 rounded-xl border border-[#370926] shadow-sm">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-bold text-slate-400 uppercase">Reencontrados</span>
+                        <div class="w-9 h-9 rounded-
