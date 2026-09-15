@@ -29,13 +29,6 @@
                             500: '#6BD425',
                             600: '#58b21e',
                         },
-                        skyaqua: {
-                            DEFAULT: '#618B25',
-                            hover: '#4e701d',
-                            100: '#e5f0d8',
-                            500: '#618B25',
-                            600: '#4e701d',
-                        },
                         lavender: {
                             DEFAULT: '#42113C',
                             hover: '#370926',
@@ -43,14 +36,6 @@
                             100: '#e9dce8',
                             500: '#42113C',
                             700: '#370926',
-                        },
-                        rosytaupe: {
-                            DEFAULT: '#42113C',
-                            hover: '#370926',
-                            50: '#f5eff4',
-                            100: '#e9dce8',
-                            500: '#42113C',
-                            600: '#370926',
                         }
                     }
                 }
@@ -80,13 +65,616 @@
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #42113C; border-radius: 3px; }
         .glass-header { backdrop-filter: blur(8px); background-color: rgba(28, 1, 24, 0.9); }
     </style>
+
+    <script>
+        // --- GLOBAL APP STATE ---
+        let currentUser = {
+            isLoggedIn: false,
+            role: 'GUEST', // 'GUEST', 'TUTOR', 'ADMIN'
+            name: 'Visitante',
+            email: ''
+        };
+
+        let petsData = [
+            {
+                id: 'PRT-90412',
+                category: 'PERDI',
+                name: 'Thor',
+                species: 'Cão',
+                breed: 'Golden Retriever',
+                color: 'Dourado',
+                date: '2026-03-10',
+                address: 'Rua das Flores, Bairro Central',
+                lat: -23.5905,
+                lng: -48.0512,
+                photo: 'https://images.unsplash.com/photo-1552053831-71594a27632d?auto=format&fit=crop&w=600&q=80',
+                contact: '(15) 99811-2233',
+                reward: 'R$ 300,00',
+                description: 'Cão dócil, atende pelo nome de Thor. Usando coleira azul. Perdeu-se próximo à praça central.',
+                status: 'Em Busca',
+                reporterName: 'Carlos Silva',
+                messages: [
+                    { sender: 'Maria Santos', text: 'Olá Carlos! Vi um cão muito parecido perto do supermercado ontem às 18h.', time: '10/03/2026 19:30' },
+                    { sender: 'Carlos Silva', text: 'Oi Maria! Muito obrigado pela ajuda! Teria fotos dele?', time: '10/03/2026 19:42' }
+                ]
+            },
+            {
+                id: 'PRT-88123',
+                category: 'ACHEI',
+                name: 'Gato Siamês',
+                species: 'Gato',
+                breed: 'Siamês',
+                color: 'Creme e Marrom Escuro',
+                date: '2026-03-11',
+                address: 'Av. Brasil, Vila Jardim',
+                lat: -23.5950,
+                lng: -48.0460,
+                photo: 'https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?auto=format&fit=crop&w=600&q=80',
+                contact: '(15) 99744-5566',
+                reward: 'Não há',
+                description: 'Gato muito dócil encontrado assustado no jardim de uma residência. Sem coleira.',
+                status: 'Aguardando Tutor',
+                reporterName: 'Fernanda Lima',
+                messages: [
+                    { sender: 'João Pedro', text: 'Boa tarde! Ele possui uma mancha preta no queixo?', time: '11/03/2026 14:10' }
+                ]
+            },
+            {
+                id: 'PRT-77210',
+                category: 'PERDI',
+                name: 'Pipoca',
+                species: 'Ave',
+                breed: 'Calopsita Amarela',
+                color: 'Amarela e Cinza',
+                date: '2026-03-08',
+                address: 'Rua Cel. Fernando, Centro',
+                lat: -23.5870,
+                lng: -48.0560,
+                photo: 'https://images.unsplash.com/photo-1522858547137-f1dcec554f55?auto=format&fit=crop&w=600&q=80',
+                contact: '(15) 99633-1122',
+                reward: 'R$ 150,00',
+                description: 'Calopsita amarela e cinza, responde por Pipoca e assobia a música do Pica-Pau.',
+                status: 'Reencontrado',
+                reporterName: 'Beatriz Rocha',
+                messages: []
+            }
+        ];
+
+        let activeDetailPet = null;
+        let activeChatPetId = null;
+        let speciesChart = null;
+        let speciesHorizontalChart = null;
+
+        function locateUserOnMap() {
+            if (!navigator.geolocation) {
+                showGlobalAlert('Geolocalização não é suportada pelo seu navegador.', 'error');
+                return;
+            }
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    showGlobalAlert('Localização obtida com sucesso! Coordenadas: ' + position.coords.latitude.toFixed(4) + ', ' + position.coords.longitude.toFixed(4), 'success');
+                },
+                (error) => {
+                    showGlobalAlert('Não foi possível obter sua localização. Verifique as permissões de GPS.', 'error');
+                }
+            );
+        }
+
+        function getFilteredPets() {
+            const categoryEl = document.getElementById('filter-category');
+            const speciesEl = document.getElementById('filter-species');
+            const statusEl = document.getElementById('filter-status');
+            const searchEl = document.getElementById('filter-search');
+
+            const category = categoryEl ? categoryEl.value : 'ALL';
+            const species = speciesEl ? speciesEl.value : 'ALL';
+            const status = statusEl ? statusEl.value : 'ALL';
+            const searchText = searchEl ? searchEl.value.toLowerCase() : '';
+
+            return petsData.filter(pet => {
+                if (category !== 'ALL' && pet.category !== category) return false;
+                if (species !== 'ALL' && pet.species !== species) return false;
+                if (status !== 'ALL' && pet.status !== status) return false;
+                if (searchText && !(
+                    pet.name.toLowerCase().includes(searchText) ||
+                    pet.breed.toLowerCase().includes(searchText) ||
+                    pet.address.toLowerCase().includes(searchText) ||
+                    pet.id.toLowerCase().includes(searchText)
+                )) return false;
+                return true;
+            });
+        }
+
+        function applyFilters() {
+            renderCasesGrid();
+        }
+
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+            const selectedTab = document.getElementById(`tab-${tabId}`);
+            if (selectedTab) selectedTab.classList.remove('hidden');
+
+            document.querySelectorAll('.nav-btn').forEach(btn => {
+                btn.classList.remove('active', 'bg-[#370926]', 'text-[#6BD425]');
+                if (btn.dataset.tab === tabId) {
+                    btn.classList.add('active', 'bg-[#370926]', 'text-[#6BD425]');
+                }
+            });
+
+            if (tabId === 'list-view') {
+                renderCasesGrid();
+            } else if (tabId === 'messages-view') {
+                renderChatThreads();
+            } else if (tabId === 'admin-view') {
+                renderAdminDashboard();
+            }
+        }
+
+        function toggleMobileMenu() {
+            const menu = document.getElementById('mobile-menu');
+            if (menu) menu.classList.toggle('hidden');
+        }
+
+        function renderCasesGrid() {
+            const grid = document.getElementById('cases-grid');
+            const emptyState = document.getElementById('empty-state');
+            if (!grid || !emptyState) return;
+            grid.innerHTML = '';
+
+            const filteredPets = getFilteredPets();
+
+            if (filteredPets.length === 0) {
+                emptyState.classList.remove('hidden');
+                return;
+            } else {
+                emptyState.classList.add('hidden');
+            }
+
+            filteredPets.forEach(pet => {
+                const isLost = pet.category === 'PERDI';
+                const badgeBg = isLost ? 'bg-[#42113C] border border-[#6BD425]/40 text-[#6BD425]' : 'bg-[#618B25] text-white';
+                const statusColor = pet.status === 'Reencontrado' 
+                    ? 'text-[#6BD425] bg-[#370926] border-[#6BD425]/40' 
+                    : 'text-slate-300 bg-[#370926] border-[#42113C]';
+
+                const cardHtml = `
+                    <div class="bg-[#1C0118] rounded-2xl shadow-sm border border-[#370926] overflow-hidden hover:shadow-md transition flex flex-col">
+                        <div class="relative h-48 bg-[#370926]">
+                            <img src="${pet.photo}" alt="${pet.name}" class="w-full h-full object-cover" onerror="this.src='https://placehold.co/400x300/370926/ffffff?text=Sem+Foto'">
+                            <span class="absolute top-3 left-3 ${badgeBg} font-bold text-xs px-3 py-1 rounded-full shadow-md">
+                                ${pet.category === 'PERDI' ? '🔴 PERDI UM PET' : '🔵 ACHEI UM PET'}
+                            </span>
+                            <span class="absolute top-3 right-3 bg-[#1C0118]/80 backdrop-blur-md text-slate-200 font-mono text-[10px] px-2 py-0.5 rounded-md border border-[#42113C]">
+                                ${pet.id}
+                            </span>
+                        </div>
+                        <div class="p-5 flex-1 flex flex-col justify-between space-y-3">
+                            <div>
+                                <div class="flex justify-between items-start">
+                                    <h3 class="font-bold text-lg text-slate-100">${pet.name}</h3>
+                                    <span class="text-xs px-2.5 py-1 rounded-full font-semibold border ${statusColor}">
+                                        ${pet.status}
+                                    </span>
+                                </div>
+                                <p class="text-xs text-slate-400 mt-0.5">${pet.species} • ${pet.breed || 'SRD'}</p>
+                                <div class="mt-2 flex items-center gap-1.5 text-xs text-slate-300 bg-[#370926]/60 px-2.5 py-1 rounded-lg border border-[#42113C]">
+                                    <i class="fa-solid fa-palette text-[#6BD425]"></i>
+                                    <span>Cor: <strong class="text-white">${pet.color || 'Não informada'}</strong></span>
+                                </div>
+                                <p class="text-xs text-slate-300 mt-2 line-clamp-2"><i class="fa-solid fa-location-dot text-[#6BD425] mr-1"></i> ${pet.address}</p>
+                            </div>
+                            
+                            <div class="pt-2 border-t border-[#370926] flex items-center justify-between text-xs">
+                                <span class="text-slate-500"><i class="fa-regular fa-calendar mr-1"></i> ${pet.date}</span>
+                                <button onclick="openPetDetails('${pet.id}')" class="bg-[#6BD425] hover:bg-[#58b21e] text-slate-950 font-medium px-3.5 py-1.5 rounded-lg transition shadow-sm">
+                                    Ver Detalhes
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                grid.innerHTML += cardHtml;
+            });
+        }
+
+        function openPetDetails(id) {
+            const pet = petsData.find(p => p.id === id);
+            if (!pet) return;
+
+            activeDetailPet = pet;
+
+            const headerBg = pet.category === 'PERDI' 
+                ? 'bg-gradient-to-r from-[#42113C] to-[#370926]' 
+                : 'bg-gradient-to-r from-[#618B25] to-[#4e701d]';
+            const headerEl = document.getElementById('modal-details-header');
+            if (headerEl) headerEl.className = `p-6 text-white flex justify-between items-start ${headerBg}`;
+
+            document.getElementById('detail-category-badge').textContent = pet.category === 'PERDI' ? '🔴 PERDI UM PET' : '🔵 ACHEI UM PET';
+            document.getElementById('detail-protocol').textContent = pet.id;
+            document.getElementById('detail-pet-name').textContent = pet.name;
+            document.getElementById('detail-species-breed').textContent = `${pet.species} • ${pet.breed || 'Sem raça definida'}`;
+            document.getElementById('detail-image').src = pet.photo;
+            document.getElementById('detail-location').innerHTML = `<i class="fa-solid fa-location-dot text-[#6BD425] mr-1"></i> ${pet.address}`;
+            document.getElementById('detail-date').textContent = pet.date;
+            document.getElementById('detail-status').textContent = pet.status;
+            document.getElementById('detail-description').textContent = pet.description || 'Nenhuma informação adicional cadastrada.';
+            document.getElementById('detail-reporter-name').textContent = pet.reporterName;
+
+            const rewardBox = document.getElementById('detail-reward-box');
+            if (pet.reward && pet.reward !== 'Não informada' && pet.reward !== 'Não há') {
+                document.getElementById('detail-reward-val').textContent = pet.reward;
+                rewardBox.classList.remove('hidden');
+            } else {
+                rewardBox.classList.add('hidden');
+            }
+
+            document.getElementById('modal-details').classList.remove('hidden');
+        }
+
+        function closeDetailsModal() {
+            document.getElementById('modal-details').classList.add('hidden');
+            activeDetailPet = null;
+        }
+
+        function openRegisterModal() {
+            document.getElementById('modal-register').classList.remove('hidden');
+            const dateField = document.getElementById('reg-date');
+            if (dateField) dateField.valueAsDate = new Date();
+        }
+
+        function closeRegisterModal() {
+            document.getElementById('modal-register').classList.add('hidden');
+        }
+
+        function loadSamplePhoto() {
+            const samples = [
+                'https://images.unsplash.com/photo-1583511655857-d19b40a7a54e?auto=format&fit=crop&w=600&q=80',
+                'https://images.unsplash.com/photo-1573865526739-10659fec78a5?auto=format&fit=crop&w=600&q=80',
+                'https://images.unsplash.com/photo-1535930891776-0c2dfb7fda1a?auto=format&fit=crop&w=600&q=80'
+            ];
+            const randomPhoto = samples[Math.floor(Math.random() * samples.length)];
+            document.getElementById('reg-photo').value = randomPhoto;
+            previewRegistrationPhoto();
+        }
+
+        function previewRegistrationPhoto() {
+            const url = document.getElementById('reg-photo').value;
+            const container = document.getElementById('photo-preview-container');
+            const img = document.getElementById('photo-preview');
+
+            if (url && container && img) {
+                img.src = url;
+                container.classList.remove('hidden');
+            } else if (container) {
+                container.classList.add('hidden');
+            }
+        }
+
+        function handlePetRegistration(e) {
+            e.preventDefault();
+
+            const catRadio = document.querySelector('input[name="reg-category"]:checked');
+            const category = catRadio ? catRadio.value : 'PERDI';
+            const name = document.getElementById('reg-name').value;
+            const species = document.getElementById('reg-species').value;
+            const breed = document.getElementById('reg-breed').value;
+            const color = document.getElementById('reg-color').value;
+            const date = document.getElementById('reg-date').value;
+            const address = document.getElementById('reg-address').value;
+            const photo = document.getElementById('reg-photo').value || 'https://placehold.co/400x300/e2e8f0/475569?text=Sem+Foto';
+            const contact = document.getElementById('reg-contact').value;
+            const reward = document.getElementById('reg-reward').value || 'Não há';
+            const description = document.getElementById('reg-description').value;
+
+            const lat = -23.5910 + (Math.random() - 0.5) * 0.02;
+            const lng = -48.0520 + (Math.random() - 0.5) * 0.02;
+            const protocolId = `PRT-${Math.floor(10000 + Math.random() * 90000)}`;
+
+            const newPet = {
+                id: protocolId,
+                category,
+                name,
+                species,
+                breed,
+                color,
+                date,
+                address,
+                lat,
+                lng,
+                photo,
+                contact,
+                reward,
+                description,
+                status: category === 'PERDI' ? 'Em Busca' : 'Aguardando Tutor',
+                reporterName: currentUser.isLoggedIn ? currentUser.name : 'Tutor Visitante',
+                messages: []
+            };
+
+            petsData.unshift(newPet);
+            closeRegisterModal();
+            document.getElementById('register-pet-form').reset();
+            document.getElementById('photo-preview-container').classList.add('hidden');
+
+            showGlobalAlert(`Ocorrência registrada com sucesso! Protocolo: ${protocolId}`, 'success');
+            applyFilters();
+            switchTab('map-view');
+        }
+
+        function openChatThread(petId) {
+            activeChatPetId = petId;
+            renderChatThreads();
+
+            const pet = petsData.find(p => p.id === petId);
+            if (!pet) return;
+
+            document.getElementById('chat-empty-view').classList.add('hidden');
+            document.getElementById('chat-active-view').classList.remove('hidden');
+
+            document.getElementById('chat-header-avatar').textContent = pet.name.charAt(0).toUpperCase();
+            document.getElementById('chat-header-title').textContent = `${pet.name} (${pet.species})`;
+            document.getElementById('chat-header-protocol').textContent = `Protocolo: ${pet.id} • Tutor: ${pet.reporterName}`;
+            document.getElementById('chat-header-badge').textContent = pet.category === 'PERDI' ? '🔴 PET PERDIDO' : '🔵 PET ENCONTRADO';
+
+            renderChatMessages();
+        }
+
+        function renderChatMessages() {
+            const body = document.getElementById('chat-messages-body');
+            if (!body) return;
+            body.innerHTML = '';
+
+            const pet = petsData.find(p => p.id === activeChatPetId);
+            if (!pet || !pet.messages) return;
+
+            if (pet.messages.length === 0) {
+                body.innerHTML = '<div class="text-center text-xs text-slate-400 py-6">Inicie a conversa sobre este animal.</div>';
+                return;
+            }
+
+            pet.messages.forEach(msg => {
+                const isMe = msg.sender === (currentUser.isLoggedIn ? currentUser.name : 'Visitante');
+                const align = isMe ? 'justify-end' : 'justify-start';
+                const bg = isMe ? 'bg-[#6BD425] text-slate-950 font-medium' : 'bg-[#370926] border border-[#42113C] text-slate-200';
+
+                const msgHtml = `
+                    <div class="flex ${align}">
+                        <div class="max-w-[80%] rounded-2xl px-4 py-2.5 shadow-sm ${bg}">
+                            <div class="flex items-center gap-2 mb-1">
+                                <span class="text-[10px] font-bold ${isMe ? 'text-slate-900' : 'text-[#6BD425]'}">${msg.sender}</span>
+                                <span class="text-[9px] ${isMe ? 'text-slate-800' : 'text-slate-400'}">${msg.time}</span>
+                            </div>
+                            <p class="text-xs leading-relaxed">${msg.text}</p>
+                        </div>
+                    </div>
+                `;
+                body.innerHTML += msgHtml;
+            });
+
+            body.scrollTop = body.scrollHeight;
+        }
+
+        function sendChatMessage(e) {
+            e.preventDefault();
+            const input = document.getElementById('chat-input-text');
+            if (!input) return;
+            const text = input.value.trim();
+            if (!text || !activeChatPetId) return;
+
+            const pet = petsData.find(p => p.id === activeChatPetId);
+            if (!pet) return;
+
+            if (!pet.messages) pet.messages = [];
+
+            const now = new Date();
+            const formattedTime = `${now.toLocaleDateString()} ${now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+
+            pet.messages.push({
+                sender: currentUser.isLoggedIn ? currentUser.name : 'Visitante',
+                text: text,
+                time: formattedTime
+            });
+
+            input.value = '';
+            renderChatMessages();
+            renderChatThreads();
+        }
+
+        function renderAdminDashboard() {
+            const total = petsData.length;
+            const lost = petsData.filter(p => p.category === 'PERDI').length;
+            const found = petsData.filter(p => p.category === 'ACHEI').length;
+            const resolved = petsData.filter(p => p.status === 'Reencontrado').length;
+
+            const elTotal = document.getElementById('metric-total');
+            if (elTotal) elTotal.textContent = total;
+            const elLost = document.getElementById('metric-lost');
+            if (elLost) elLost.textContent = lost;
+            const elFound = document.getElementById('metric-found');
+            if (elFound) elFound.textContent = found;
+            const elResolved = document.getElementById('metric-resolved');
+            if (elResolved) elResolved.textContent = resolved;
+
+            renderAdminCharts(lost, found, resolved);
+            renderAdminTable();
+        }
+
+        function renderAdminCharts(lost, found, resolved) {
+            const speciesMap = {
+                'Cão': 0,
+                'Gato': 0,
+                'Ave': 0,
+                'Animais de Criação': 0,
+                'Outros': 0
+            };
+
+            petsData.forEach(p => {
+                if (speciesMap[p.species] !== undefined) {
+                    speciesMap[p.species]++;
+                } else {
+                    speciesMap['Outros'] = (speciesMap['Outros'] || 0) + 1;
+                }
+            });
+
+            if (speciesChart) speciesChart.destroy();
+            if (speciesHorizontalChart) speciesHorizontalChart.destroy();
+
+            const paletteColors = ['#6BD425', '#618B25', '#42113C', '#370926', '#8A89C0'];
+
+            const ctxSpeciesEl = document.getElementById('chart-species');
+            if (ctxSpeciesEl) {
+                speciesChart = new Chart(ctxSpeciesEl.getContext('2d'), {
+                    type: 'doughnut',
+                    data: {
+                        labels: Object.keys(speciesMap),
+                        datasets: [{
+                            data: Object.values(speciesMap),
+                            backgroundColor: paletteColors
+                        }]
+                    },
+                    options: { responsive: true, maintainAspectRatio: false }
+                });
+            }
+
+            const ctxHorizontalEl = document.getElementById('chart-species-horizontal');
+            if (ctxHorizontalEl) {
+                speciesHorizontalChart = new Chart(ctxHorizontalEl.getContext('2d'), {
+                    type: 'bar',
+                    data: {
+                        labels: ['Cães', 'Gatos', 'Aves', 'Animais de Criação'],
+                        datasets: [{
+                            label: 'Número de Postagens',
+                            data: [
+                                speciesMap['Cão'],
+                                speciesMap['Gato'],
+                                speciesMap['Ave'],
+                                speciesMap['Animais de Criação']
+                            ],
+                            backgroundColor: ['#6BD425', '#618B25', '#42113C', '#370926'],
+                            borderRadius: 6
+                        }]
+                    },
+                    options: {
+                        indexAxis: 'y',
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            x: {
+                                beginAtZero: true,
+                                ticks: { precision: 0 }
+                            }
+                        }
+                    }
+                });
+            }
+        }
+
+        function renderAdminTable() {
+            const tbody = document.getElementById('admin-table-body');
+            if (!tbody) return;
+            tbody.innerHTML = '';
+
+            petsData.forEach(pet => {
+                const tr = document.createElement('tr');
+                tr.className = 'hover:bg-[#370926]/30 transition';
+
+                tr.innerHTML = `
+                    <td class="p-4 font-mono text-xs font-bold text-slate-200">${pet.id}</td>
+                    <td class="p-4">
+                        <span class="px-2.5 py-1 text-[10px] font-bold rounded-full ${pet.category === 'PERDI' ? 'bg-[#42113C] text-[#6BD425] border border-[#6BD425]/30' : 'bg-[#618B25] text-white'}">
+                            ${pet.category}
+                        </span>
+                    </td>
+                    <td class="p-4 font-semibold text-slate-100">${pet.name} <span class="text-xs text-slate-400 font-normal">(${pet.species})</span></td>
+                    <td class="p-4 text-xs">${pet.date}<br><span class="text-slate-400">${pet.address}</span></td>
+                    <td class="p-4 text-xs">${pet.reporterName}<br><span class="text-slate-400">${pet.contact}</span></td>
+                    <td class="p-4">
+                        <select onchange="changePetStatus('${pet.id}', this.value)" class="text-xs border border-[#42113C] rounded-lg px-2 py-1 bg-[#1C0118] text-slate-200 outline-none focus:ring-1 focus:ring-[#6BD425]">
+                            <option value="Em Busca" ${pet.status === 'Em Busca' ? 'selected' : ''}>Em Busca</option>
+                            <option value="Aguardando Tutor" ${pet.status === 'Aguardando Tutor' ? 'selected' : ''}>Aguardando Tutor</option>
+                            <option value="Reencontrado" ${pet.status === 'Reencontrado' ? 'selected' : ''}>Reencontrado</option>
+                        </select>
+                    </td>
+                    <td class="p-4 text-right">
+                        <button onclick="deletePet('${pet.id}')" class="text-rose-400 hover:text-rose-300 p-1.5 rounded-lg hover:bg-rose-950/50" title="Excluir Ocorrência">
+                            <i class="fa-solid fa-trash-can"></i>
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function changePetStatus(id, newStatus) {
+            const pet = petsData.find(p => p.id === id);
+            if (pet) {
+                pet.status = newStatus;
+                renderAdminDashboard();
+                applyFilters();
+                showGlobalAlert(`Status da ocorrência ${id} atualizado para "${newStatus}".`, 'success');
+            }
+        }
+
+        function deletePet(id) {
+            petsData = petsData.filter(p => p.id !== id);
+            renderAdminDashboard();
+            applyFilters();
+            showGlobalAlert(`Ocorrência ${id} removida com sucesso.`, 'info');
+        }
+
+        function exportDataCSV() {
+            let csvContent = "data:text/csv;charset=utf-8,Protocolo,Categoria,Nome,Especie,Raca,Data,Endereco,Contato,Status\n";
+            petsData.forEach(p => {
+                csvContent += `${p.id},${p.category},"${p.name}",${p.species},"${p.breed}",${p.date},"${p.address}","${p.contact}",${p.status}\n`;
+            });
+
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", `petalert_export_${new Date().toISOString().slice(0,10)}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        function showGlobalAlert(msg, type = 'info') {
+            const banner = document.getElementById('global-alert');
+            const icon = document.getElementById('global-alert-icon');
+            const msgEl = document.getElementById('global-alert-msg');
+            if (!banner || !icon || !msgEl) return;
+
+            msgEl.textContent = msg;
+            banner.className = 'mb-4 p-4 rounded-xl border shadow-sm transition-all duration-300 flex items-center justify-between ';
+
+            if (type === 'success') {
+                banner.className += 'bg-[#370926] border-[#6BD425]/50 text-[#6BD425]';
+                icon.className = 'fa-solid fa-circle-check text-[#6BD425] text-xl';
+            } else if (type === 'error') {
+                banner.className += 'bg-[#370926] border-rose-500/50 text-rose-300';
+                icon.className = 'fa-solid fa-triangle-exclamation text-rose-400 text-xl';
+            } else {
+                banner.className += 'bg-[#370926] border-[#618B25]/50 text-emerald-200';
+                icon.className = 'fa-solid fa-circle-info text-[#6BD425] text-xl';
+            }
+
+            banner.classList.remove('hidden');
+            setTimeout(() => closeGlobalAlert(), 6000);
+        }
+
+        function closeGlobalAlert() {
+            const banner = document.getElementById('global-alert');
+            if (banner) banner.classList.add('hidden');
+        }
+
+        window.onload = function () {
+            updateUserUI();
+            applyFilters();
+        };
+    </script>
 </head>
 <body class="h-full flex flex-col text-slate-100 antialiased selection:bg-[#6BD425] selection:text-slate-950 bg-slate-950">
 
-    <!-- Tela de Autenticação Obrigatória (Exibida antes de entrar no App) -->
     <div id="auth-screen" class="fixed inset-0 z-50 bg-[#1C0118] flex items-center justify-center p-4 bg-gradient-to-br from-[#1C0118] via-[#370926] to-[#42113C]">
         <div class="bg-[#370926] rounded-3xl shadow-2xl border border-[#42113C] w-full max-w-md overflow-hidden transform transition-all text-slate-100">
-            <!-- Modal Header with Logo -->
             <div class="p-6 bg-gradient-to-r from-[#42113C] to-[#618B25] text-white text-center relative">
                 <div class="w-24 h-24 rounded-2xl bg-white/10 backdrop-blur-md flex items-center justify-center mx-auto mb-3 p-2 shadow-lg border border-white/25">
                     <img src="https://storage.googleapis.com/msgsndr/wWJb27xK6s22zL7j95x5/media/67d643d9f3f4e2456e43f0ae.png" alt="PetLink Logo" class="w-full h-full object-contain rounded-xl" onerror="this.src='https://placehold.co/100x100/ffffff/618B25?text=PetLink'">
@@ -96,7 +684,6 @@
             </div>
 
             <div class="p-6 space-y-5">
-                <!-- Preset Login Buttons for Fast Testing -->
                 <div class="bg-[#1C0118] border border-[#42113C] rounded-xl p-3 text-xs text-slate-200 space-y-2">
                     <p class="font-bold text-[#6BD425] flex items-center justify-center gap-1.5">
                         <i class="fa-solid fa-bolt"></i> Acesso Rápido para Testes:
@@ -117,7 +704,6 @@
                     <div class="flex-grow border-t border-[#42113C]"></div>
                 </div>
 
-                <!-- Login Form -->
                 <form id="mandatory-login-form" onsubmit="handleLoginSubmit(event)" class="space-y-4">
                     <div>
                         <label class="block text-xs font-bold text-slate-300 uppercase mb-1">E-mail</label>
@@ -145,13 +731,11 @@
         </div>
     </div>
 
-    <!-- Main Application Container (Hidden until user logs in) -->
     <div id="app-container" class="hidden h-full flex flex-col">
 
     <header class="sticky top-0 z-40 w-full glass-header border-b border-[#370926] shadow-sm bg-[#1C0118]/90 text-slate-100">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex items-center justify-between h-16">
-                <!-- Logo Top Left -->
                 <div class="flex items-center gap-3 cursor-pointer" onclick="switchTab('map-view')">
                     <div class="w-11 h-11 rounded-xl bg-gradient-to-tr from-[#618B25] to-[#6BD425] flex items-center justify-center text-slate-950 shadow-md p-1 border border-white/20">
                         <img src="https://storage.googleapis.com/msgsndr/wWJb27xK6s22zL7j95x5/media/67d643d9f3f4e2456e43f0ae.png" alt="PetLink Logo" class="w-full h-full object-contain rounded-lg" onerror="this.style.display='none'">
@@ -162,9 +746,8 @@
                     </div>
                 </div>
 
-                <!-- Navigation Tabs (Desktop) -->
                 <nav id="main-nav" class="hidden md:flex items-center space-x-1">
-                    <button onclick="switchTab('map-view')" class="nav-btn text-slate-300 hover:text-[#6BD425] hover:bg-[#42113C] px-3 py-2 rounded-lg text-sm font-medium transition flex items-center gap-2" data-tab="map-view">
+                    <button onclick="switchTab('map-view')" class="nav-btn active bg-[#370926] text-[#6BD425] px-3 py-2 rounded-lg text-sm font-medium transition flex items-center gap-2" data-tab="map-view">
                         <i class="fa-solid fa-map-location-dot text-[#6BD425]"></i> Mapa de Ocorrências
                     </button>
                     <button onclick="switchTab('list-view')" class="nav-btn text-slate-300 hover:text-[#6BD425] hover:bg-[#42113C] px-3 py-2 rounded-lg text-sm font-medium transition flex items-center gap-2" data-tab="list-view">
@@ -175,14 +758,12 @@
                     </button>
                     <button onclick="switchTab('messages-view')" class="nav-btn text-slate-300 hover:text-[#6BD425] hover:bg-[#42113C] px-3 py-2 rounded-lg text-sm font-medium transition flex items-center gap-2 relative" data-tab="messages-view">
                         <i class="fa-solid fa-comments text-[#618B25]"></i> Mensagens
-                        <span id="unread-badge" class="hidden absolute -top-1 -right-1 bg-[#42113C] text-white text-[10px] w-4 h-4 rounded-full flex items-center justify-center font-bold border border-[#6BD425]">0</span>
                     </button>
                     <button id="nav-btn-admin" onclick="switchTab('admin-view')" class="hidden nav-btn text-[#6BD425] hover:text-[#58b21e] hover:bg-[#42113C] px-3 py-2 rounded-lg text-sm font-semibold transition flex items-center gap-2" data-tab="admin-view">
                         <i class="fa-solid fa-user-shield"></i> Painel Admin
                     </button>
                 </nav>
 
-                <!-- Auth Controls -->
                 <div class="flex items-center gap-3">
                     <div id="user-profile-badge" class="hidden flex items-center gap-3 bg-[#370926] px-3 py-1.5 rounded-full border border-[#42113C]">
                         <div class="w-7 h-7 rounded-full bg-[#6BD425] text-slate-950 flex items-center justify-center font-bold text-xs" id="user-avatar-initials">T</div>
@@ -199,7 +780,6 @@
                         <i class="fa-solid fa-right-to-bracket"></i> Entrar / Cadastrar
                     </button>
 
-                    <!-- Mobile Menu Button -->
                     <button onclick="toggleMobileMenu()" class="md:hidden p-2 rounded-lg text-slate-300 hover:bg-[#370926]">
                         <i class="fa-solid fa-bars text-xl"></i>
                     </button>
@@ -207,7 +787,6 @@
             </div>
         </div>
 
-        <!-- Mobile Navigation Menu -->
         <div id="mobile-menu" class="hidden md:hidden border-t border-[#370926] bg-[#1C0118] px-4 pt-2 pb-4 space-y-1">
             <button onclick="switchTab('map-view'); toggleMobileMenu()" class="w-full text-left px-3 py-2 rounded-md text-base font-medium text-slate-300 hover:bg-[#370926]">
                 <i class="fa-solid fa-map-location-dot w-6 text-[#6BD425]"></i> Mapa de Ocorrências
@@ -229,7 +808,6 @@
 
     <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 relative bg-slate-950 text-slate-100">
 
-        <!-- Global Alert Message Banner -->
         <div id="global-alert" class="hidden mb-4 p-4 rounded-xl border shadow-sm transition-all duration-300 flex items-center justify-between">
             <div class="flex items-center gap-3">
                 <i id="global-alert-icon" class="text-xl"></i>
@@ -238,21 +816,17 @@
             <button onclick="closeGlobalAlert()" class="text-slate-400 hover:text-slate-200 text-lg">&times;</button>
         </div>
 
-        <!-- TAB 1: INTERACTIVE MAP VIEW -->
+        <!-- TAB 1: MAP VIEW -->
         <section id="tab-map-view" class="tab-content space-y-4">
-            <!-- Filter Bar for Map -->
             <div class="bg-[#1C0118] p-4 rounded-xl shadow-sm border border-[#370926] flex flex-col md:flex-row gap-4 items-center justify-between">
                 <div class="flex flex-wrap items-center gap-3 w-full md:w-auto">
                     <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Filtros Rápidos:</span>
-                    
-                    <!-- Category Selector -->
                     <select id="filter-category" onchange="applyFilters()" class="text-sm border border-[#370926] rounded-lg px-3 py-1.5 bg-[#370926] text-slate-200 focus:bg-[#1C0118] focus:ring-2 focus:ring-[#6BD425] outline-none">
                         <option value="ALL">Todas Categorias (Perdi & Achei)</option>
                         <option value="PERDI">🔴 Perdi um Pet</option>
                         <option value="ACHEI">🔵 Achei um Pet</option>
                     </select>
 
-                    <!-- Species Filter -->
                     <select id="filter-species" onchange="applyFilters()" class="text-sm border border-[#370926] rounded-lg px-3 py-1.5 bg-[#370926] text-slate-200 focus:bg-[#1C0118] focus:ring-2 focus:ring-[#6BD425] outline-none">
                         <option value="ALL">Todas as Espécies</option>
                         <option value="Cão">🐶 Cão</option>
@@ -261,7 +835,6 @@
                         <option value="Outros">🐾 Outros</option>
                     </select>
 
-                    <!-- Status Filter -->
                     <select id="filter-status" onchange="applyFilters()" class="text-sm border border-[#370926] rounded-lg px-3 py-1.5 bg-[#370926] text-slate-200 focus:bg-[#1C0118] focus:ring-2 focus:ring-[#6BD425] outline-none">
                         <option value="ALL">Todos os Status</option>
                         <option value="Em Busca">🔍 Em Busca</option>
@@ -269,37 +842,25 @@
                         <option value="Reencontrado">🎉 Reencontrado / Resolvido</option>
                     </select>
 
-                    <!-- Geolocation Button -->
-                    <button onclick="locateUserOnMap()" class="text-sm border border-[#618B25] text-[#6BD425] hover:bg-[#370926] font-medium px-3 py-1.5 rounded-lg transition flex items-center gap-1.5" title="Centralizar na minha localização atual">
+                    <button onclick="locateUserOnMap()" class="text-sm border border-[#618B25] text-[#6BD425] hover:bg-[#370926] font-medium px-3 py-1.5 rounded-lg transition flex items-center gap-1.5">
                         <i class="fa-solid fa-crosshairs"></i> Minha Localização
                     </button>
                 </div>
 
-                <!-- Text Search -->
                 <div class="w-full md:w-72 relative">
                     <input type="text" id="filter-search" oninput="applyFilters()" placeholder="Buscar por bairro, nome ou raça..." class="w-full pl-9 pr-3 py-1.5 text-sm bg-[#370926] border border-[#42113C] text-white rounded-lg focus:ring-2 focus:ring-[#6BD425] outline-none placeholder-slate-400">
                     <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-slate-400 text-xs"></i>
                 </div>
             </div>
 
-            <!-- Map Wrapper -->
             <div class="relative bg-[#1C0118] p-2 rounded-2xl shadow-sm border border-[#370926] overflow-hidden">
                 <div class="map-embed-container">
                     <iframe src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3675.2906123456!2d-48.0512!3d-23.5905!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x94c5cc70ba456a65%3A0x770be09241987369!2sItapetininga%2C%20SP!5e0!3m2!1spt-BR!2sbr!4v1789348722913!5m2!1spt-BR!2sbr" allowfullscreen="" loading="lazy" referrerpolicy="strict-origin-when-cross-origin"></iframe>
                 </div>
-                
-                <!-- Map Floating Legend -->
-                <div class="absolute bottom-6 right-6 z-[10] bg-[#1C0118]/95 backdrop-blur-md p-3 rounded-xl shadow-lg border border-[#370926] text-xs space-y-1.5 text-slate-200 pointer-events-none">
-                    <p class="font-bold text-[#6BD425] border-b border-[#370926] pb-1 mb-1">Área de Cobertura</p>
-                    <div class="flex items-center gap-2">
-                        <span class="w-3 h-3 rounded-full bg-[#42113C] inline-block border border-[#6BD425]/50"></span>
-                        <span class="text-slate-300">Itapetininga - SP e Região</span>
-                    </div>
-                </div>
             </div>
         </section>
 
-        <!-- TAB 2: CASUAL LISTING VIEW -->
+        <!-- TAB 2: LIST VIEW -->
         <section id="tab-list-view" class="tab-content hidden space-y-6">
             <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div>
@@ -311,35 +872,27 @@
                 </button>
             </div>
 
-            <!-- List Grid -->
-            <div id="cases-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                <!-- Injected via JavaScript -->
-            </div>
+            <div id="cases-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6"></div>
 
-            <!-- Empty State -->
             <div id="empty-state" class="hidden text-center py-12 bg-[#1C0118] rounded-2xl border border-dashed border-[#370926]">
                 <i class="fa-solid fa-paw text-4xl text-slate-600 mb-3"></i>
                 <h3 class="text-lg font-medium text-slate-300">Nenhuma ocorrência encontrada</h3>
-                <p class="text-sm text-slate-500 max-w-sm mx-auto mt-1">Tente ajustar os filtros ou seja o primeiro a registrar uma nova ocorrência em sua região.</p>
+                <p class="text-sm text-slate-500 max-w-sm mx-auto mt-1">Tente ajustar os filtros ou registre uma nova ocorrência.</p>
             </div>
         </section>
 
-        <!-- TAB 3: MESSAGES / CONTACT VIEW -->
+        <!-- TAB 3: MESSAGES VIEW -->
         <section id="tab-messages-view" class="tab-content hidden space-y-4">
             <div class="bg-[#1C0118] rounded-2xl shadow-sm border border-[#370926] overflow-hidden min-h-[500px] flex flex-col md:flex-row">
-                <!-- Chat List Sidebar -->
                 <div class="w-full md:w-80 border-r border-[#370926] bg-[#370926]/40 flex flex-col">
                     <div class="p-4 border-b border-[#370926]">
                         <h3 class="font-bold text-slate-200 flex items-center gap-2">
                             <i class="fa-solid fa-comments text-[#6BD425]"></i> Contatos & Conversas
                         </h3>
                     </div>
-                    <div id="chat-threads-list" class="flex-1 overflow-y-auto divide-y divide-[#370926] custom-scrollbar">
-                        <!-- Chat tabs dynamic -->
-                    </div>
+                    <div id="chat-threads-list" class="flex-1 overflow-y-auto divide-y divide-[#370926] custom-scrollbar"></div>
                 </div>
 
-                <!-- Chat Active View -->
                 <div id="chat-window" class="flex-1 flex flex-col bg-[#1C0118]">
                     <div id="chat-empty-view" class="flex-1 flex flex-col items-center justify-center p-8 text-center text-slate-500">
                         <i class="fa-regular fa-paper-plane text-5xl mb-3 text-slate-700"></i>
@@ -347,7 +900,6 @@
                     </div>
 
                     <div id="chat-active-view" class="hidden flex-1 flex flex-col h-full">
-                        <!-- Header Chat -->
                         <div class="p-4 border-b border-[#370926] flex items-center justify-between bg-[#370926]/30">
                             <div class="flex items-center gap-3">
                                 <div id="chat-header-avatar" class="w-10 h-10 rounded-full bg-[#6BD425] text-slate-950 flex items-center justify-center font-bold">P</div>
@@ -359,12 +911,8 @@
                             <span id="chat-header-badge" class="px-2.5 py-1 text-xs font-semibold rounded-full bg-[#370926] text-[#6BD425] border border-[#42113C]">Ref: Ocorrência</span>
                         </div>
 
-                        <!-- Messages Content -->
-                        <div id="chat-messages-body" class="flex-1 p-4 overflow-y-auto space-y-3 custom-scrollbar bg-slate-950/40">
-                            <!-- Injected JS -->
-                        </div>
+                        <div id="chat-messages-body" class="flex-1 p-4 overflow-y-auto space-y-3 custom-scrollbar bg-slate-950/40"></div>
 
-                        <!-- Input Area -->
                         <form id="chat-form" onsubmit="sendChatMessage(event)" class="p-3 border-t border-[#370926] flex gap-2 bg-[#1C0118]">
                             <input type="text" id="chat-input-text" placeholder="Escreva sua mensagem aqui..." required class="flex-1 px-4 py-2 text-sm bg-[#370926] border border-[#42113C] text-white rounded-xl focus:ring-2 focus:ring-[#6BD425] outline-none">
                             <button type="submit" class="bg-[#6BD425] hover:bg-[#58b21e] text-slate-950 px-5 py-2 rounded-xl text-sm font-semibold transition flex items-center gap-2">
@@ -376,7 +924,7 @@
             </div>
         </section>
 
-        <!-- TAB 4: ADMIN DASHBOARD VIEW -->
+        <!-- TAB 4: ADMIN VIEW -->
         <section id="tab-admin-view" class="tab-content hidden space-y-6">
             <div class="bg-gradient-to-r from-[#1C0118] via-[#370926] to-[#42113C] rounded-2xl p-6 text-white shadow-lg border border-[#42113C] flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div>
@@ -389,7 +937,6 @@
                 </button>
             </div>
 
-            <!-- Metric Cards -->
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 <div class="bg-[#1C0118] p-5 rounded-xl border border-[#370926] shadow-sm">
                     <div class="flex items-center justify-between">
@@ -418,4 +965,315 @@
                 <div class="bg-[#1C0118] p-5 rounded-xl border border-[#370926] shadow-sm">
                     <div class="flex items-center justify-between">
                         <span class="text-xs font-bold text-slate-400 uppercase">Reencontrados</span>
-                        <div class="w-9 h-9 rounded-
+                        <div class="w-9 h-9 rounded-lg bg-[#370926] text-[#6BD425] flex items-center justify-center"><i class="fa-solid fa-circle-check"></i></div>
+                    </div>
+                    <p id="metric-resolved" class="text-2xl font-bold text-slate-100 mt-2">0</p>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div class="bg-[#1C0118] p-5 rounded-2xl border border-[#370926] shadow-sm">
+                    <h3 class="font-bold text-slate-200 text-sm mb-4">Distribuição por Espécies</h3>
+                    <div class="h-64 flex justify-center items-center">
+                        <canvas id="chart-species"></canvas>
+                    </div>
+                </div>
+                <div class="bg-[#1C0118] p-5 rounded-2xl border border-[#370926] shadow-sm">
+                    <h3 class="font-bold text-slate-200 text-sm mb-4">Comparativo de Postagens por Categoria/Espécie</h3>
+                    <div class="h-64 flex justify-center items-center">
+                        <canvas id="chart-species-horizontal"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-[#1C0118] rounded-2xl border border-[#370926] shadow-sm overflow-hidden">
+                <div class="p-4 border-b border-[#370926] flex items-center justify-between">
+                    <h3 class="font-bold text-slate-100 text-base">Gerenciador de Protocolos e Ocorrências</h3>
+                    <span class="text-xs text-slate-400">Ações imediatas de alteração de status e exclusão</span>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-sm text-slate-300">
+                        <thead class="bg-[#370926]/50 text-xs font-bold text-[#6BD425] uppercase border-b border-[#370926]">
+                            <tr>
+                                <th class="p-4">Protocolo</th>
+                                <th class="p-4">Categoria</th>
+                                <th class="p-4">Pet / Espécie</th>
+                                <th class="p-4">Data / Local</th>
+                                <th class="p-4">Tutor / Contato</th>
+                                <th class="p-4">Status</th>
+                                <th class="p-4 text-right">Ações Admin</th>
+                            </tr>
+                        </thead>
+                        <tbody id="admin-table-body" class="divide-y divide-[#370926]"></tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    </div>
+
+    <!-- MODAL: REGISTER -->
+    <div id="modal-register" class="fixed inset-0 z-50 bg-[#1C0118]/80 backdrop-blur-sm hidden flex items-center justify-center p-4">
+        <div class="bg-[#1C0118] rounded-3xl shadow-2xl border border-[#42113C] w-full max-w-3xl max-h-[90vh] overflow-y-auto custom-scrollbar text-slate-100">
+            <div class="p-6 bg-[#370926] text-white sticky top-0 z-10 flex justify-between items-center border-b border-[#42113C]">
+                <div>
+                    <h3 class="text-xl font-bold flex items-center gap-2">
+                        <i class="fa-solid fa-circle-plus text-[#6BD425]"></i> Registrar Nova Ocorrência
+                    </h3>
+                    <p class="text-xs text-slate-400">Preencha os detalhes do animal perdido ou encontrado</p>
+                </div>
+                <button onclick="closeRegisterModal()" class="text-slate-400 hover:text-white text-2xl">&times;</button>
+            </div>
+
+            <form id="register-pet-form" onsubmit="handlePetRegistration(event)" class="p-6 space-y-6">
+                <div>
+                    <label class="block text-xs font-bold text-slate-300 uppercase mb-2">Categoria da Ocorrência *</label>
+                    <div class="grid grid-cols-2 gap-4">
+                        <label class="cursor-pointer">
+                            <input type="radio" name="reg-category" value="PERDI" checked class="peer sr-only">
+                            <div class="p-4 rounded-2xl border-2 border-[#370926] peer-checked:border-[#6BD425] peer-checked:bg-[#370926]/40 hover:bg-[#370926]/20 transition text-center">
+                                <i class="fa-solid fa-heart-crack text-2xl text-[#6BD425] mb-1"></i>
+                                <p class="font-bold text-sm text-slate-100">PERDI UM PET</p>
+                                <p class="text-[11px] text-slate-400">Procuro meu animal de estimação</p>
+                            </div>
+                        </label>
+
+                        <label class="cursor-pointer">
+                            <input type="radio" name="reg-category" value="ACHEI" class="peer sr-only">
+                            <div class="p-4 rounded-2xl border-2 border-[#370926] peer-checked:border-[#6BD425] peer-checked:bg-[#370926]/40 hover:bg-[#370926]/20 transition text-center">
+                                <i class="fa-solid fa-hand-holding-heart text-2xl text-[#6BD425] mb-1"></i>
+                                <p class="font-bold text-sm text-slate-100">ACHEI UM PET</p>
+                                <p class="text-[11px] text-slate-400">Encontrei/Avistei um animal perdido</p>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-300 uppercase mb-1">Nome do Pet / Apelido *</label>
+                        <input type="text" id="reg-name" required placeholder="ex: Thor ou 'Sem Nome'" class="w-full px-4 py-2 text-sm bg-[#370926] border border-[#42113C] text-white rounded-xl focus:ring-2 focus:ring-[#6BD425] outline-none">
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold text-slate-300 uppercase mb-1">Espécie *</label>
+                        <select id="reg-species" required class="w-full px-4 py-2 text-sm bg-[#370926] border border-[#42113C] text-white rounded-xl focus:ring-2 focus:ring-[#6BD425] outline-none">
+                            <option value="Cão">🐶 Cão</option>
+                            <option value="Gato">🐱 Gato</option>
+                            <option value="Ave">🦜 Ave</option>
+                            <option value="Animais de Criação">🐄 Animais de Criação</option>
+                            <option value="Outros">🐾 Outros</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold text-slate-300 uppercase mb-1">Raça</label>
+                        <input type="text" id="reg-breed" placeholder="ex: Vira-lata, Siamês, Nelore" class="w-full px-4 py-2 text-sm bg-[#370926] border border-[#42113C] text-white rounded-xl focus:ring-2 focus:ring-[#6BD425] outline-none">
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold text-slate-300 uppercase mb-1">Cor Predominante *</label>
+                        <input type="text" id="reg-color" required placeholder="ex: Caramelo, Preto, Branco e Marrom" class="w-full px-4 py-2 text-sm bg-[#370926] border border-[#42113C] text-white rounded-xl focus:ring-2 focus:ring-[#6BD425] outline-none">
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold text-slate-300 uppercase mb-1">Data da Ocorrência *</label>
+                        <input type="date" id="reg-date" required class="w-full px-4 py-2 text-sm bg-[#370926] border border-[#42113C] text-white rounded-xl focus:ring-2 focus:ring-[#6BD425] outline-none">
+                    </div>
+                </div>
+
+                <div class="space-y-2">
+                    <label class="block text-xs font-bold text-slate-300 uppercase">Localização da Ocorrência (Google Maps) *</label>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-2">
+                        <div class="md:col-span-2">
+                            <input type="text" id="reg-address" required placeholder="Endereço / Bairro / Ponto de referência" class="w-full px-4 py-2 text-sm bg-[#370926] border border-[#42113C] text-white rounded-xl focus:ring-2 focus:ring-[#6BD425] outline-none">
+                        </div>
+                        <div>
+                            <input type="text" id="reg-coords" readonly value="Itapetininga, SP" class="w-full px-3 py-2 text-xs border border-[#370926] bg-[#370926]/50 rounded-xl text-slate-400">
+                        </div>
+                    </div>
+                    <div class="form-map-container border border-[#370926] rounded-xl overflow-hidden bg-[#370926]">
+                        <iframe src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3675.2906123456!2d-48.0512!3d-23.5905!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x94c5cc70ba456a65%3A0x770be09241987369!2sItapetininga%2C%20SP!5e0!3m2!1spt-BR!2sbr!4v1789348722913!5m2!1spt-BR!2sbr" allowfullscreen="" loading="lazy" referrerpolicy="strict-origin-when-cross-origin"></iframe>
+                    </div>
+                </div>
+
+                <div class="space-y-2">
+                    <label class="block text-xs font-bold text-slate-300 uppercase">Foto do Pet (URL de Imagem)</label>
+                    <div class="flex gap-2">
+                    <input type="url" id="reg-photo" onchange="previewRegistrationPhoto()" placeholder="https://exemplo.com/foto.jpg" class="flex-1 px-4 py-2 text-sm bg-[#370926] border border-[#42113C] text-white rounded-xl focus:ring-2 focus:ring-[#6BD425] outline-none">
+                    <button type="button" onclick="loadSamplePhoto()" class="px-3 py-2 text-xs bg-[#370926] hover:bg-[#42113C] text-slate-200 font-semibold rounded-xl border border-[#42113C]">Foto Exemplo</button>
+                </div>
+                <div id="photo-preview-container" class="hidden mt-2 flex justify-center">
+                    <img id="photo-preview" src="" alt="Preview" class="h-32 object-cover rounded-xl border border-[#370926]">
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-xs font-bold text-slate-300 uppercase mb-1">Telefone / WhatsApp Contato *</label>
+                    <input type="tel" id="reg-contact" required placeholder="(15) 99999-9999" class="w-full px-4 py-2 text-sm bg-[#370926] border border-[#42113C] text-white rounded-xl focus:ring-2 focus:ring-[#6BD425] outline-none">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-300 uppercase mb-1">Recompensa (Opcional)</label>
+                    <input type="text" id="reg-reward" placeholder="ex: R$ 200,00 ou Não há" class="w-full px-4 py-2 text-sm bg-[#370926] border border-[#42113C] text-white rounded-xl focus:ring-2 focus:ring-[#6BD425] outline-none">
+                </div>
+            </div>
+
+            <div>
+                <label class="block text-xs font-bold text-slate-300 uppercase mb-1">Descrição Detalhada / Marcas de Identificação</label>
+                <textarea id="reg-description" rows="3" placeholder="Ex: Coleira vermelha com pingente..." class="w-full px-4 py-2 text-sm bg-[#370926] border border-[#42113C] text-white rounded-xl focus:ring-2 focus:ring-[#6BD425] outline-none"></textarea>
+            </div>
+
+            <div class="pt-2 flex justify-end gap-3">
+                <button type="button" onclick="closeRegisterModal()" class="px-5 py-2.5 rounded-xl border border-[#42113C] text-sm font-semibold text-slate-300 hover:bg-[#370926]">Cancelar</button>
+                <button type="submit" class="px-6 py-2.5 rounded-xl bg-[#6BD425] hover:bg-[#58b21e] text-slate-950 text-sm font-bold shadow-md transition">
+                    Gerar Protocolo & Publicar
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- MODAL: DETAILS -->
+<div id="modal-details" class="fixed inset-0 z-50 bg-[#1C0118]/80 backdrop-blur-sm hidden flex items-center justify-center p-4">
+    <div class="bg-[#1C0118] rounded-3xl shadow-2xl border border-[#42113C] w-full max-w-2xl overflow-hidden max-h-[90vh] flex flex-col text-slate-100">
+        <div id="modal-details-header" class="p-6 text-white flex justify-between items-start bg-gradient-to-r from-[#42113C] to-[#370926]">
+            <div>
+                <div class="flex items-center gap-2">
+                    <span id="detail-category-badge" class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-white/20">PERDI</span>
+                    <span id="detail-protocol" class="text-xs text-white/80 font-mono">PRT-00000</span>
+                </div>
+                <h3 id="detail-pet-name" class="text-2xl font-bold mt-1">Nome do Pet</h3>
+                <p id="detail-species-breed" class="text-xs text-white/80">Espécie / Raça</p>
+            </div>
+            <button onclick="closeDetailsModal()" class="text-white/80 hover:text-white text-2xl">&times;</button>
+        </div>
+
+        <div class="p-6 space-y-4 overflow-y-auto custom-scrollbar flex-1">
+            <div class="flex flex-col sm:flex-row gap-4">
+                <img id="detail-image" src="" alt="Pet" class="w-full sm:w-48 h-48 object-cover rounded-2xl border border-[#370926]">
+                <div class="space-y-2 flex-1 text-sm">
+                    <div class="bg-[#370926] p-3 rounded-xl border border-[#42113C] space-y-1">
+                        <p class="text-xs font-bold text-slate-400 uppercase">Local da Ocorrência</p>
+                        <p id="detail-location" class="font-semibold text-slate-200"><i class="fa-solid fa-location-dot text-[#6BD425] mr-1"></i> Endereço</p>
+                    </div>
+                    <div class="grid grid-cols-2 gap-2">
+                        <div class="bg-[#370926] p-3 rounded-xl border border-[#42113C]">
+                            <p class="text-[10px] font-bold text-slate-400 uppercase">Data</p>
+                            <p id="detail-date" class="font-semibold text-slate-200 text-xs">00/00/0000</p>
+                        </div>
+                        <div class="bg-[#370926] p-3 rounded-xl border border-[#42113C]">
+                            <p class="text-[10px] font-bold text-slate-400 uppercase">Status</p>
+                            <p id="detail-status" class="font-bold text-xs text-[#6BD425]">Em Busca</p>
+                        </div>
+                    </div>
+                    <div id="detail-reward-box" class="hidden bg-[#370926] border border-[#6BD425]/40 p-2.5 rounded-xl text-emerald-200 text-xs font-bold flex items-center gap-2">
+                        <i class="fa-solid fa-trophy text-[#6BD425] text-base"></i>
+                        <span>Recompensa: <span id="detail-reward-val">R$ 0,00</span></span>
+                    </div>
+                </div>
+            </div>
+
+            <div>
+                <h4 class="text-xs font-bold text-slate-400 uppercase mb-1">Descrição e Detalhes</h4>
+                <p id="detail-description" class="text-sm text-slate-300 bg-[#370926] p-3 rounded-xl border border-[#42113C]">Sem descrição detalhada.</p>
+            </div>
+
+            <div class="border-t border-[#370926] pt-3 flex flex-col sm:flex-row items-center justify-between gap-3">
+                <div class="text-xs text-slate-400">
+                    <span>Registrado por: </span>
+                    <strong id="detail-reporter-name" class="text-slate-200">Tutor</strong>
+                </div>
+
+                <div class="flex gap-2 w-full sm:w-auto">
+                    <button id="btn-start-chat" onclick="startChatFromDetails()" class="flex-1 sm:flex-initial bg-[#6BD425] hover:bg-[#58b21e] text-slate-950 font-bold px-4 py-2 rounded-xl text-xs transition flex items-center justify-center gap-1.5 shadow-md">
+                        <i class="fa-solid fa-comment-dots"></i> Enviar Mensagem
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function quickLogin(role) {
+    const user = {
+        name: role === 'ADMIN' ? 'Administrador' : 'Usuário',
+        email: role === 'ADMIN' ? 'admin@petlink.com' : 'tutor@petlink.com',
+        role: role
+    };
+
+    sessionStorage.setItem('petlink_user', JSON.stringify(user));
+
+    document.getElementById('auth-screen').classList.add('hidden');
+    document.getElementById('app-container').classList.remove('hidden');
+
+    updateUserInterface(user);
+}
+
+function handleLoginSubmit(event) {
+    event.preventDefault();
+
+    const email = document.getElementById('login-email').value;
+    const password = document.getElementById('login-password').value;
+    const role = document.getElementById('login-role').value;
+
+    if (!email || !password) {
+        showGlobalAlert('Preencha o e-mail e a senha.', 'error');
+        return;
+    }
+
+    const user = {
+        name: email.split('@')[0],
+        email: email,
+        role: role
+    };
+
+    sessionStorage.setItem('petlink_user', JSON.stringify(user));
+
+    document.getElementById('auth-screen').classList.add('hidden');
+    document.getElementById('app-container').classList.remove('hidden');
+
+    updateUserInterface(user);
+}
+
+function updateUserInterface(user) {
+    document.getElementById('user-profile-badge').classList.remove('hidden');
+    document.getElementById('user-profile-badge').classList.add('flex');
+
+    document.getElementById('user-name-display').textContent = user.name;
+    document.getElementById('user-role-badge').textContent = user.role;
+    document.getElementById('user-avatar-initials').textContent =
+        user.name.charAt(0).toUpperCase();
+
+    if (user.role === 'ADMIN') {
+        document.getElementById('nav-btn-admin').classList.remove('hidden');
+        document.getElementById('mobile-nav-admin').classList.remove('hidden');
+    }
+}
+
+function logout() {
+    sessionStorage.removeItem('petlink_user');
+
+    document.getElementById('app-container').classList.add('hidden');
+    document.getElementById('auth-screen').classList.remove('hidden');
+}
+
+document.addEventListener('DOMContentLoaded', function () {
+    const savedUser = sessionStorage.getItem('petlink_user');
+
+    if (savedUser) {
+        const user = JSON.parse(savedUser);
+
+        document.getElementById('auth-screen').classList.add('hidden');
+        document.getElementById('app-container').classList.remove('hidden');
+
+        updateUserInterface(user);
+    }
+});
+</script>
+
+</body>
+</html>
